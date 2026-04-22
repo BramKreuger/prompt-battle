@@ -1,44 +1,53 @@
 <script>
-	import { io } from 'socket.io-client';
+	import { onMount } from 'svelte';
 	import Confetti from '../Confetti.svelte';
 	import { page } from '$app/stores';
 	import { Wave as LoadingSpinnerWave } from 'svelte-loading-spinners';
+	import { tournamentState, getSocket } from '$lib/tournament-client.js';
+	import Countdown from '$lib/Countdown.svelte';
 
 	let prompt = '';
-	let imageUrl = 'https://picsum.photos/300';
+	let imageUrl = '';
 	let showImage = false;
 	let isGenerating = false;
 	let isCelebrating = false;
+	/** @type {any} */
+	let socket;
+	/** @type {any} */
+	let inputEl;
 
-	$: {
-		socket.emit('promptChange', { userId: $page.params.id, prompt: prompt });
-	}
+	onMount(() => {
+		socket = getSocket();
 
-	const socket = io();
-	socket.on('celebrate', (winnerId) => {
-		if (String(winnerId) === $page.params.id) {
-			isCelebrating = true;
-			setTimeout(() => {
-				isCelebrating = false;
-			}, 4000);
-		}
+		socket.on('celebrate', (winnerId) => {
+			if (String(winnerId) === $page.params.id) {
+				isCelebrating = true;
+				setTimeout(() => (isCelebrating = false), 4000);
+			}
+		});
+
+		socket.on('generate', (winnerId) => {
+			if (!winnerId || String(winnerId) === $page.params.id) {
+				submit();
+			}
+		});
+
+		socket.on('reset', (winnerId) => {
+			if (!winnerId || String(winnerId) === $page.params.id) {
+				reset();
+			}
+		});
 	});
 
-	socket.on('generate', (winnerId) => {
-		if (!winnerId || String(winnerId) === $page.params.id) {
-			submit();
-		}
-	});
+	$: socket && socket.emit('promptChange', { userId: $page.params.id, prompt });
 
-	socket.on('reset', (winnerId) => {
-		if (!winnerId || String(winnerId) === $page.params.id) {
-			reset();
-		}
-	});
-
-	function triggerReset() {
-		socket.emit('reset', $page.params.id);
-	}
+	$: s = $tournamentState;
+	$: match = s?.bracket?.[s.currentRoundIdx]?.[s.currentMatchIdx];
+	$: myName = match ? (String($page.params.id) === '1' ? match.p1 : match.p2) : null;
+	$: opponentName = match ? (String($page.params.id) === '1' ? match.p2 : match.p1) : null;
+	$: currentText = s?.currentPrompt?.text;
+	$: canType = s?.status === 'prompting';
+	$: waiting = s?.status === 'match_intro' || s?.status === 'configured';
 
 	function reset() {
 		prompt = '';
@@ -66,59 +75,89 @@
 			showImage = true;
 			const jsonData = await response.json();
 			imageUrl = jsonData.url;
-			socket.emit('imageReady', { userId: $page.params.id, imageUrl: imageUrl });
+			socket.emit('imageReady', { userId: $page.params.id, imageUrl });
 		} catch (err) {
 			alert(err);
 			isGenerating = false;
 		}
 	}
 
-	function init(el) {
+	function initInput(el) {
+		inputEl = el;
 		el.focus();
 	}
+
+	$: if (canType && inputEl && document.activeElement !== inputEl) inputEl.focus();
 </script>
 
 <div class="h-full p-6">
-	<div class="h-full flex flex-col md:flex-row">
-		{#if showImage}
-			<img
-				src={imageUrl}
-				class="object-contain w-full h-full flex-basis-40 basis-2/5 mr-4"
-				alt=""
-			/>
-		{/if}
-		<div class="flex-grow p-8 border-2 border-turquoise">
-			<textarea
-				class="autofocus w-full bg-inherit text-turquoise text-4xl md:text-7xl"
-				placeholder="Please type your prompt!"
-				bind:value={prompt}
-				use:init
-			/>
+	{#if !s || s.status === 'idle'}
+		<div class="h-full flex items-center justify-center text-2xl text-gray-400">
+			Waiting for tournament setup…
 		</div>
-	</div>
+	{:else if waiting}
+		<div class="h-full flex flex-col items-center justify-center text-center">
+			{#if myName}
+				<div class="text-xl text-gray-400 mb-2">You are</div>
+				<div class="text-6xl text-turquoise mb-6">{myName}</div>
+				<div class="text-xl text-gray-400">Next opponent</div>
+				<div class="text-4xl">{opponentName}</div>
+				<div class="text-lg mt-8 text-gray-500">Get ready — waiting for prompt…</div>
+			{:else}
+				<div class="text-2xl text-gray-400">Waiting…</div>
+			{/if}
+		</div>
+	{:else if s.status === 'generating' || isGenerating}
+		<div class="h-full flex items-center justify-center">
+			<LoadingSpinnerWave size="200" color="#6EEBEA" unit="px" duration="1s" />
+		</div>
+	{:else if showImage && imageUrl}
+		<div class="h-full flex flex-col">
+			<div class="text-sm text-gray-400">
+				{myName} · "{currentText}"
+			</div>
+			<img src={imageUrl} class="object-contain w-full flex-1 min-h-0 mt-2" alt="" />
+		</div>
+	{:else if canType}
+		<div class="h-full flex flex-col">
+			<div class="mb-3 flex items-start justify-between gap-4">
+				<div>
+					<div class="text-sm text-gray-400 uppercase">Your prompt challenge</div>
+					<div class="text-3xl md:text-5xl">"{currentText}"</div>
+					<div class="text-sm text-gray-500 mt-1">You are {myName}</div>
+				</div>
+				{#if s.currentPrompt?.deadlineTs}
+					<Countdown deadlineTs={s.currentPrompt.deadlineTs} size="lg" />
+				{/if}
+			</div>
+			<div class="flex-1 p-4 border-2 border-turquoise min-h-0">
+				<textarea
+					class="autofocus w-full h-full bg-inherit text-turquoise text-3xl md:text-5xl"
+					placeholder="Type your prompt…"
+					bind:value={prompt}
+					use:initInput
+				/>
+			</div>
+		</div>
+	{:else}
+		<div class="h-full flex items-center justify-center text-center">
+			<div>
+				<div class="text-2xl text-gray-400">Status: {s.status}</div>
+				{#if myName}
+					<div class="text-5xl text-turquoise mt-4">{myName}</div>
+				{/if}
+			</div>
+		</div>
+	{/if}
 
 	{#if isCelebrating}
 		<Confetti />
 	{/if}
-	{#if isGenerating}
-		<div class="absolute left-0 top-0 w-full h-full flex justify-center items-center z-10">
-			<LoadingSpinnerWave size="200" color="#6EEBEA" unit="px" duration="1s" />
-		</div>
-	{/if}
+
 	<div
-		class="w-full border-none focus:border-none left-0 bottom-0 absolute flex border-t-white border-2"
+		class="w-full border-none left-0 bottom-0 absolute flex border-t-white border-2 text-sm px-4"
 	>
-		<div>Player {$page.params.id}</div>
-		<!--
-		<div class="ml-auto">
-			<button class="bg-white text-black p-1 md:p-4 z-10 " on:click={triggerReset} type="submit"
-				>Reset</button
-			>
-			<button class="bg-white text-black p-1 md:p-4 z-10 " on:click={submit} type="submit"
-				>Generate</button
-			>
-		</div>
-		 -->
+		<div>Player {$page.params.id} — {myName || '—'}</div>
 	</div>
 </div>
 
@@ -127,13 +166,9 @@
 		border: none;
 		overflow: auto;
 		outline: none;
-
 		-webkit-box-shadow: none;
 		-moz-box-shadow: none;
 		box-shadow: none;
-
-		resize: none; /*remove the resize handle on the bottom right*/
-
-		height: 50vh;
+		resize: none;
 	}
 </style>

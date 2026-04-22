@@ -1,4 +1,4 @@
-import { SD_API_URL } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 const WIDTH = 512;
 const HEIGHT = 512;
@@ -55,9 +55,9 @@ function createRequestBody(prompt, width, height) {
 }
 
 export async function createImage(prompt) {
-	if (!SD_API_URL) throw Error('SD_API_URL missing!');
+	if (!env.SD_API_URL) throw Error('env.SD_API_URL missing!');
 	const bodyContent = createRequestBody(prompt, WIDTH, HEIGHT);
-	const response = await fetch(`${SD_API_URL}/run/predict/`, {
+	const response = await fetch(`${env.SD_API_URL}/run/predict/`, {
 		credentials: 'omit',
 		headers: {
 			'User-Agent':
@@ -69,7 +69,7 @@ export async function createImage(prompt) {
 			'Sec-Fetch-Mode': 'cors',
 			'Sec-Fetch-Site': 'same-origin'
 		},
-		referrer: SD_API_URL,
+		referrer: env.SD_API_URL,
 		body: JSON.stringify(bodyContent),
 		method: 'POST',
 		mode: 'cors'
@@ -94,6 +94,6 @@ export async function createImage(prompt) {
 	const responseJson = await response.json();
 	console.log(responseJson);
 	const imageUrlLocal = responseJson.data[0][0].name;
-	const imageUrlPublic = `${SD_API_URL}/file=${imageUrlLocal}`;
+	const imageUrlPublic = `${env.SD_API_URL}/file=${imageUrlLocal}`;
 	return { url: imageUrlPublic };
 }

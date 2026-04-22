@@ -1,6 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { Configuration, OpenAIApi } from 'openai';
-import { OPENAI_API_KEY, OPENAI_ORG_ID } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 const TIER_GUIDANCE = {
 	easy: 'playful and concrete — absurd mashups like "a dog driving a car" or "a pirate in space"',
@@ -9,14 +9,14 @@ const TIER_GUIDANCE = {
 };
 
 export async function POST({ request }) {
-	if (!OPENAI_API_KEY) throw error(500, { message: 'OPENAI_API_KEY missing' });
+	if (!env.OPENAI_API_KEY) throw error(500, { message: 'OPENAI_API_KEY missing' });
 	const body = await request.json();
 	const count = Math.max(1, Math.min(10, Number(body?.count) || 5));
 	const tier = ['easy', 'medium', 'hard'].includes(body?.tier) ? body.tier : 'medium';
 
 	const configuration = new Configuration({
-		organization: OPENAI_ORG_ID,
-		apiKey: OPENAI_API_KEY
+		organization: env.OPENAI_ORG_ID,
+		apiKey: env.OPENAI_API_KEY
 	});
 	const openai = new OpenAIApi(configuration);
 

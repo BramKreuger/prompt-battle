@@ -4,6 +4,9 @@
 	import Countdown from '$lib/Countdown.svelte';
 	import Confetti from '../Confetti.svelte';
 	import { audioEnabled, enableAudio } from '$lib/audio.js';
+	import QRCode from 'qrcode';
+
+	let voteQrDataUrl = '';
 
 	/** @type {number | null} */
 	let confettiFor = null;
@@ -16,12 +19,19 @@
 	/** @type {number | null} */
 	let finalAudioPlayedForRound = null;
 
-	onMount(() => {
+	onMount(async () => {
 		const sock = getSocket();
 		sock.on('celebrate', (winnerId) => {
 			confettiFor = Number(winnerId);
 			clearTimeout(confettiTimer);
 			confettiTimer = setTimeout(() => (confettiFor = null), 4000);
+		});
+
+		const voteUrl = window.location.origin + '/vote';
+		voteQrDataUrl = await QRCode.toDataURL(voteUrl, {
+			width: 160,
+			margin: 1,
+			color: { dark: '#000000', light: '#ffffff' }
 		});
 	});
 
@@ -162,8 +172,11 @@
 			</div>
 
 			{#if s.status === 'voting'}
-				<div class="mt-4 text-center text-xl text-turquoise">
-					🗳️ Audience, vote now at <span class="underline">/vote</span>
+				<div class="mt-4 flex items-center justify-center gap-4 text-xl text-turquoise">
+					{#if voteQrDataUrl}
+						<img src={voteQrDataUrl} alt="QR code to vote" class="h-24 w-24 rounded" />
+					{/if}
+					<span>🗳️ Scan to vote or go to <span class="underline">/vote</span></span>
 				</div>
 			{/if}
 		{/if}

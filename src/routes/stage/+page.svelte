@@ -29,7 +29,7 @@
 
 		const voteUrl = window.location.origin + '/vote';
 		voteQrDataUrl = await QRCode.toDataURL(voteUrl, {
-			width: 160,
+			width: 512,
 			margin: 1,
 			color: { dark: '#000000', light: '#ffffff' }
 		});
@@ -48,6 +48,7 @@
 	$: pct1 = totalVotes ? Math.round((cp.votes[1] / totalVotes) * 100) : 0;
 	$: pct2 = totalVotes ? 100 - pct1 : 0;
 	$: isFinalRound = s?.bracket?.length && s.currentRoundIdx === s.bracket.length - 1;
+	$: gameActive = s && s.status !== 'idle' && s.status !== 'configured';
 
 	$: if (
 		s?.status === 'match_intro' &&
@@ -90,7 +91,11 @@
 
 <div class="h-full w-full flex flex-col p-6 text-white">
 	{#if !s || s.status === 'idle' || s.status === 'configured'}
-		<div class="flex-1 flex items-center justify-center">
+		<div class="flex-1 flex flex-col items-center justify-center gap-6">
+			{#if voteQrDataUrl}
+				<img src={voteQrDataUrl} alt="QR code to vote" class="w-80 h-80 rounded-lg" />
+				<p class="text-2xl text-turquoise">Scan to join the vote!</p>
+			{/if}
 			<p class="text-4xl text-gray-400">Waiting for tournament to start…</p>
 		</div>
 	{:else if s.status === 'tournament_complete'}
@@ -172,16 +177,19 @@
 			</div>
 
 			{#if s.status === 'voting'}
-				<div class="mt-4 flex items-center justify-center gap-4 text-xl text-turquoise">
-					{#if voteQrDataUrl}
-						<img src={voteQrDataUrl} alt="QR code to vote" class="h-24 w-24 rounded" />
-					{/if}
-					<span>🗳️ Scan to vote or go to <span class="underline">/vote</span></span>
+				<div class="mt-4 text-center text-xl text-turquoise">
+					🗳️ Audience, vote now!
 				</div>
 			{/if}
 		{/if}
 	{/if}
 </div>
+
+{#if gameActive && voteQrDataUrl}
+	<div class="qr-thumb">
+		<img src={voteQrDataUrl} alt="QR code to vote" />
+	</div>
+{/if}
 
 {#if confettiFor}
 	<Confetti />
@@ -214,5 +222,25 @@
 <style>
 	:global(body) {
 		overflow: hidden;
+	}
+
+	.qr-thumb {
+		position: fixed;
+		bottom: 1rem;
+		left: 1rem;
+		z-index: 50;
+		cursor: pointer;
+	}
+
+	.qr-thumb img {
+		width: 5rem;
+		height: 5rem;
+		border-radius: 0.5rem;
+		transition: all 0.2s ease;
+	}
+
+	.qr-thumb:hover img {
+		width: 20rem;
+		height: 20rem;
 	}
 </style>

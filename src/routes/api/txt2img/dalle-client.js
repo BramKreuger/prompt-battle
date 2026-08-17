@@ -23,7 +23,9 @@ export async function createImage(prompt) {
 		const result = await openai.images.generate({
 			model: MODEL,
 			prompt: prompt,
-			n: 2,
+			// Only the first image is ever used, so asking for two just cost a
+			// second image and ~5s of extra latency per generation.
+			n: 1,
 			size: '1024x1024',
 			quality: 'low',
 			output_format: OUTPUT_FORMAT,

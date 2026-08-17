@@ -1,4 +1,4 @@
-import { Configuration, OpenAIApi } from 'openai';
+import OpenAI from 'openai';
 import { env } from '$env/dynamic/private';
 import { describeOpenAIError } from '$lib/server/openai-error';
 
@@ -14,14 +14,13 @@ const OUTPUT_FORMAT = 'jpeg';
 export async function createImage(prompt) {
 	if (!env.OPENAI_API_KEY) throw Error('OPENAI_API_KEY missing!');
 	if (!prompt) throw Error('Prompt is missing');
-	const configuration = new Configuration({
-		organization: env.OPENAI_ORG_ID,
-		apiKey: env.OPENAI_API_KEY
+	const openai = new OpenAI({
+		apiKey: env.OPENAI_API_KEY,
+		organization: env.OPENAI_ORG_ID || undefined
 	});
-	const openai = new OpenAIApi(configuration);
 	console.log(`...Calling image API (${MODEL})...`);
 	try {
-		const response = await openai.createImage({
+		const result = await openai.images.generate({
 			model: MODEL,
 			prompt: prompt,
 			n: 2,
@@ -30,7 +29,7 @@ export async function createImage(prompt) {
 			output_format: OUTPUT_FORMAT,
 			output_compression: 80
 		});
-		const b64 = response.data.data[0]?.b64_json;
+		const b64 = result.data?.[0]?.b64_json;
 		if (!b64) throw Error('Image API returned no image data');
 		return { url: `data:image/${OUTPUT_FORMAT};base64,${b64}` };
 	} catch (err) {

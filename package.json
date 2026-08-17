@@ -41,7 +41,7 @@
 	"dependencies": {
 		"@leveluptuts/svelte-fit": "^1.0.3",
 		"@sveltejs/adapter-node": "^1.2.0",
-		"openai": "^3.2.1",
+		"openai": "^7.4.0",
 		"qrcode": "^1.5.4",
 		"socket.io": "^4.6.1",
 		"socket.io-client": "^4.6.1"

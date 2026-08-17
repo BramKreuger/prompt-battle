@@ -29,7 +29,11 @@ export async function POST({ request }) {
 		const res = await createImage(prompt);
 		return json(res); //TODO: Add types! {url: 'my-url.png'}
 	} catch (err) {
-		console.log(err);
+		// Log the message only — a raw axios error would include the
+		// Authorization header, i.e. the API key, in plaintext. The detail stays
+		// server-side: this endpoint is unauthenticated, so upstream API errors
+		// should not be echoed back to the browser.
+		console.error('txt2img failed:', err.message);
 		throw error(500, { message: 'There was a problem accessing the image generation API' });
 	}
 }

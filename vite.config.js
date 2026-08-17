@@ -8,7 +8,11 @@ process.env.BROWSER = 'firefox';
 const webSocketServerPlugin = {
 	name: 'sveltekit-socket-io',
 	configureServer(server) {
-		const io = new Server(server.httpServer);
+		// gpt-image-* returns base64, so images travel as data URIs rather than
+		// short https links. socket.io's default maxHttpBufferSize is 1 MB,
+		// which both 'imageReady' and the full 'tournament:state' broadcast
+		// (two images at once) would exceed, silently killing the connection.
+		const io = new Server(server.httpServer, { maxHttpBufferSize: 1e7 });
 		console.log('SocketIO injected');
 
 		let timerHandle = null;

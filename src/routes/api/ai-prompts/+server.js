@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { Configuration, OpenAIApi } from 'openai';
 import { env } from '$env/dynamic/private';
+import { describeOpenAIError } from '$lib/server/openai-error';
 
 const TIER_GUIDANCE = {
 	easy: 'playful and concrete — absurd mashups like "a dog driving a car" or "a pirate in space"',
@@ -56,7 +57,7 @@ Return a plain JSON array of ${count} strings, nothing else.`;
 			.slice(0, count);
 		return json({ prompts });
 	} catch (err) {
-		console.log('AI prompt generation error', err);
+		console.error('AI prompt generation failed:', describeOpenAIError(err));
 		throw error(500, { message: 'AI prompt generation failed' });
 	}
 }

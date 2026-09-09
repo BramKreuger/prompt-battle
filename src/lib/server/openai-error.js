@@ -28,8 +28,15 @@ export function describeOpenAIError(err) {
  */
 const REASONS = {
 	copyright: 'Dit is auteursrechtelijk beschermd — dat maakt OpenAI niet. Probeer iets anders!',
+	// Reached when the pre-screen did not see it coming, so it has to cover
+	// every likely cause. Measured against gpt-image-2: the filter is not
+	// deterministic — "a surreal dreamlike landscape with melting clocks" was
+	// refused on 1 of 3 identical attempts — so retrying the same prompt really
+	// is worth a shot, and is the first thing to suggest. It also refuses some
+	// artists by name ("in the style of salvador dali" is blocked, while van
+	// gogh and picasso are not), hence the hint about dropping names.
 	safety:
-		'Deze prompt komt niet door het contentfilter van OpenAI — dat gebeurt vaak bij bekende figuren uit films of games. Probeer iets anders!',
+		'Het contentfilter van OpenAI weigerde deze prompt. Probeer het nog een keer — vaak lukt het dan wél. Zo niet: laat namen weg (een figuur uit een film of game, of een kunstenaar) en omschrijf het zelf!',
 	unsafe:
 		'Deze prompt komt niet door het contentfilter van OpenAI. Probeer iets anders — houd het een beetje onschuldig!',
 	rate_limited: 'De beeld-API zit even vol. Probeer het direct nog een keer!',

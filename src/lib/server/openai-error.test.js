@@ -23,7 +23,7 @@ describe('toImageGenerationError', () => {
 		expect(failure.reason).toMatch(/contentfilter/i);
 	});
 
-	it('mentions known characters, since the API block never says why', () => {
+	it('names both likely causes, since the API block never says why', () => {
 		// Verified against gpt-image-2: the refusal is only ever "rejected by the
 		// safety system", with no hint that a character was the problem.
 		const failure = toImageGenerationError(
@@ -33,7 +33,13 @@ describe('toImageGenerationError', () => {
 				message: 'Your request was rejected by the safety system.'
 			})
 		);
-		expect(failure.reason).toMatch(/bekende figuren/);
+		// Verified against gpt-image-2: both a character and an artist's style
+		// ("in the style of salvador dali") produce this same blank refusal.
+		expect(failure.reason).toMatch(/film of game/);
+		expect(failure.reason).toMatch(/kunstenaar/);
+		// The filter refused an identical prompt on 1 of 3 tries, so "try again"
+		// is real advice, not a platitude.
+		expect(failure.reason).toMatch(/nog een keer/);
 	});
 
 	it('names copyright when the API does', () => {

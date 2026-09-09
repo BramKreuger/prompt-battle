@@ -13,6 +13,12 @@ import { describeOpenAIError } from './openai-error.js';
 // but happily draws brand logos and real public figures, named or not — so the
 // screen must not block those, or it would veto legitimate hard-tier prompts
 // like "the current U.S. president" straight out of the game's own pool.
+//
+// Artist styles are deliberately NOT screened: the filter keeps a per-artist
+// list we cannot predict ("in the style of salvador dali" is refused, van gogh
+// and picasso are not). Guessing there would wrongly veto legal prompts, which
+// is worse than the slow path — those fall through to the image API, and the
+// `safety` reason in openai-error.js names the artist case explicitly.
 const MODEL = 'gpt-4o-mini';
 // Never let the guard become the slow part: if it has not answered by now, let
 // the image API be the judge instead.

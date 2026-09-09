@@ -3,8 +3,13 @@ import { PROMPT_POOL, totalRounds, difficultyForRound, pickPrompt } from '../pro
 // Hard ceiling on the `generating` phase. A prompt the image API refuses (a
 // copyrighted character, say) means one player never reports an image, and
 // without a deadline the whole tournament would sit in `generating` forever.
-// Also long enough to retype a blocked prompt and try again.
-const GENERATE_TIMEOUT_SECONDS = 75;
+//
+// 90s leaves room for a few attempts: a refusal from the image API itself
+// costs ~20s before the player even learns about it, and since that filter is
+// not deterministic, retrying is often the fix. Costs nothing in the normal
+// case — voting opens as soon as both images land — and the host can always
+// cut it short with "Skip to voting now".
+const GENERATE_TIMEOUT_SECONDS = 90;
 
 function freshPromptSlot() {
 	return {

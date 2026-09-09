@@ -18,9 +18,18 @@ const webSocketServerPlugin = {
 		let timerHandle = null;
 		let scheduledFor = null;
 
+		// The two timed phases: typing ends by itself, and so must generating —
+		// an image the API refuses (blocked prompt) never reports back, so
+		// without this the tournament would stall in `generating` forever.
+		function pendingDeadline(s) {
+			if (s?.status === 'prompting') return { phase: 'prompting', ts: s.currentPrompt?.deadlineTs };
+			if (s?.status === 'generating')
+				return { phase: 'generating', ts: s.currentPrompt?.generateDeadlineTs };
+			return { phase: null, ts: null };
+		}
+
 		function syncPromptTimer() {
-			const s = getState();
-			const deadline = s?.status === 'prompting' ? s.currentPrompt?.deadlineTs : null;
+			const { phase, ts: deadline } = pendingDeadline(getState());
 			if (deadline !== scheduledFor) {
 				if (timerHandle) clearTimeout(timerHandle);
 				timerHandle = null;
@@ -29,12 +38,17 @@ const webSocketServerPlugin = {
 					const delay = Math.max(0, deadline - Date.now());
 					timerHandle = setTimeout(() => {
 						const now = getState();
-						if (now?.status === 'prompting' && now.currentPrompt?.deadlineTs === deadline) {
+						const current = pendingDeadline(now);
+						// Re-check: the phase may have moved on while we waited.
+						if (current.phase !== phase || current.ts !== deadline) return;
+						if (phase === 'prompting') {
 							dispatch({ type: 'triggerGenerate' });
 							io.emit('generate', undefined);
-							io.emit('tournament:state', getState());
-							syncPromptTimer();
+						} else {
+							dispatch({ type: 'resolveGeneration' });
 						}
+						io.emit('tournament:state', getState());
+						syncPromptTimer();
 					}, delay);
 				}
 			}
@@ -73,6 +87,18 @@ const webSocketServerPlugin = {
 				const pid = Number(userId);
 				if (pid === 1 || pid === 2) {
 					dispatch({ type: 'imageReady', payload: { playerId: pid, imageUrl } });
+					broadcast();
+				}
+			});
+
+			// A player's generation was refused or failed. Recorded rather than
+			// treated as "done", so they can fix the prompt and retry inside the
+			// generate window; the window's deadline resolves the phase if not.
+			socket.on('imageFailed', ({ userId, code, reason }) => {
+				io.emit('imageFailed', { userId, code, reason });
+				const pid = Number(userId);
+				if (pid === 1 || pid === 2) {
+					dispatch({ type: 'generationFailed', payload: { playerId: pid, code, reason } });
 					broadcast();
 				}
 			});

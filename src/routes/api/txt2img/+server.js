@@ -1,6 +1,8 @@
 import { json, error } from '@sveltejs/kit';
 import { createImage as sdCreateImage } from './sd-client';
 import { createImage as dalleCreateImage } from './dalle-client';
+import { blockedPromptError, toImageGenerationError } from '$lib/server/openai-error';
+import { prescreenPrompt } from '$lib/server/prompt-guard';
 
 export function GET(params) {
 	return new Response(JSON.stringify(params));
@@ -26,14 +28,35 @@ export async function POST({ request }) {
 			throw error(500, { message: 'Unknown image generation engine!' });
 	}
 	try {
+		// Ask a fast model first. The image API takes 19-34s to say "rejected by
+		// the safety system" and never says why; this answers in about a second
+		// and can name the character. Advisory only — it returns null on any
+		// trouble, and only 'dalle' has a filter worth pre-empting.
+		if (engine === 'dalle') {
+			const screened = await prescreenPrompt(prompt);
+			if (screened) {
+				const failure = blockedPromptError(screened);
+				console.log('txt2img pre-screened:', failure.message);
+				return json(
+					{ code: failure.code, reason: failure.reason, message: failure.reason },
+					{ status: 422 }
+				);
+			}
+		}
 		const res = await createImage(prompt);
 		return json(res); //TODO: Add types! {url: 'my-url.png'}
 	} catch (err) {
-		// Log the message only — a raw axios error would include the
-		// Authorization header, i.e. the API key, in plaintext. The detail stays
-		// server-side: this endpoint is unauthenticated, so upstream API errors
-		// should not be echoed back to the browser.
-		console.error('txt2img failed:', err.message);
-		throw error(500, { message: 'There was a problem accessing the image generation API' });
+		const failure = toImageGenerationError(err);
+		// Log the redacted message only — a raw axios/SDK error would include the
+		// Authorization header, i.e. the API key, in plaintext. Only the authored
+		// `reason` goes to the browser; upstream error text stays server-side,
+		// since this endpoint is unauthenticated.
+		console.error(`txt2img failed (${failure.code}):`, failure.message);
+		return json(
+			{ code: failure.code, reason: failure.reason, message: failure.reason },
+			// 422: the request was fine, the prompt was refused. The player screen
+			// keys off `code` to offer a retry instead of a dead end.
+			{ status: failure.code === 'prompt_blocked' ? 422 : 502 }
+		);
 	}
 }

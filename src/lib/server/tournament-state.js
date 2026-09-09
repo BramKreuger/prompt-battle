@@ -1,5 +1,11 @@
 import { PROMPT_POOL, totalRounds, difficultyForRound, pickPrompt } from '../prompts.js';
 
+// Hard ceiling on the `generating` phase. A prompt the image API refuses (a
+// copyrighted character, say) means one player never reports an image, and
+// without a deadline the whole tournament would sit in `generating` forever.
+// Also long enough to retype a blocked prompt and try again.
+const GENERATE_TIMEOUT_SECONDS = 75;
+
 function freshPromptSlot() {
 	return {
 		text: '',
@@ -7,10 +13,14 @@ function freshPromptSlot() {
 		typed: { 1: '', 2: '' },
 		images: { 1: null, 2: null },
 		imageReady: { 1: false, 2: false },
+		// Last generation failure per player, `{ code, reason }`, so the stage and
+		// admin screens can explain a missing image instead of showing a blank.
+		errors: { 1: null, 2: null },
 		votes: { 1: 0, 2: 0 },
 		votedClients: [],
 		winner: null,
-		deadlineTs: null
+		deadlineTs: null,
+		generateDeadlineTs: null
 	};
 }
 
@@ -195,7 +205,9 @@ export function dispatch(action) {
 			break;
 		}
 		case 'typing': {
-			if (state.status !== 'prompting') break;
+			// `generating` counts too: a player retyping after a blocked prompt
+			// should have the caption under their image match what they sent.
+			if (state.status !== 'prompting' && state.status !== 'generating') break;
 			const pid = payload?.playerId;
 			if (pid !== 1 && pid !== 2) break;
 			state.currentPrompt.typed[pid] = (payload?.text || '').toString().slice(0, 500);
@@ -204,18 +216,52 @@ export function dispatch(action) {
 		case 'triggerGenerate': {
 			if (state.status !== 'prompting') break;
 			state.currentPrompt.deadlineTs = null;
+			state.currentPrompt.generateDeadlineTs = Date.now() + GENERATE_TIMEOUT_SECONDS * 1000;
 			state.status = 'generating';
 			break;
 		}
 		case 'imageReady': {
+			const pid = payload?.playerId;
+			if (pid !== 1 && pid !== 2) break;
+			// `voting` is allowed too: a player whose first try was blocked may
+			// land a retry just after the phase resolved without them, and their
+			// image is better than an empty card.
+			if (state.status !== 'generating' && state.status !== 'voting') break;
+			state.currentPrompt.images[pid] = payload?.imageUrl || null;
+			state.currentPrompt.imageReady[pid] = true;
+			state.currentPrompt.errors[pid] = null;
+			if (state.currentPrompt.imageReady[1] && state.currentPrompt.imageReady[2]) {
+				state.status = 'voting';
+				state.currentPrompt.generateDeadlineTs = null;
+			}
+			break;
+		}
+		case 'generationFailed': {
 			if (state.status !== 'generating') break;
 			const pid = payload?.playerId;
 			if (pid !== 1 && pid !== 2) break;
-			state.currentPrompt.images[pid] = payload?.imageUrl || null;
-			state.currentPrompt.imageReady[pid] = true;
-			if (state.currentPrompt.imageReady[1] && state.currentPrompt.imageReady[2]) {
-				state.status = 'voting';
+			// Deliberately does NOT mark the player ready: they keep the rest of
+			// the generate window to fix the prompt and try again. If they don't,
+			// `resolveGeneration` (deadline or host) ends the phase without them.
+			state.currentPrompt.errors[pid] = {
+				code: (payload?.code || 'error').toString().slice(0, 40),
+				reason: (payload?.reason || '').toString().slice(0, 300)
+			};
+			break;
+		}
+		case 'resolveGeneration': {
+			// Escape hatch out of `generating`, from the generate deadline or from
+			// the host's "skip to voting" button. Whoever has no image goes to the
+			// vote with an empty card — the audience can still pick a winner.
+			if (state.status !== 'generating') break;
+			for (const pid of [1, 2]) {
+				if (!state.currentPrompt.imageReady[pid]) {
+					state.currentPrompt.imageReady[pid] = true;
+					state.currentPrompt.images[pid] = state.currentPrompt.images[pid] || null;
+				}
 			}
+			state.currentPrompt.generateDeadlineTs = null;
+			state.status = 'voting';
 			break;
 		}
 		case 'vote': {
@@ -244,6 +290,7 @@ export function dispatch(action) {
 					difficulty: state.currentPrompt.difficulty,
 					typed: { ...state.currentPrompt.typed },
 					images: { ...state.currentPrompt.images },
+					errors: { ...state.currentPrompt.errors },
 					votes: { ...state.currentPrompt.votes },
 					winner
 				});

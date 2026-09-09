@@ -137,6 +137,10 @@
 					<div class="absolute top-2 right-4">
 						<Countdown deadlineTs={cp.deadlineTs} size="lg" playBeeps={true} />
 					</div>
+				{:else if s.status === 'generating' && cp.generateDeadlineTs && (cp.errors?.[1] || cp.errors?.[2])}
+					<div class="absolute top-2 right-4">
+						<Countdown deadlineTs={cp.generateDeadlineTs} size="md" />
+					</div>
 				{/if}
 			</div>
 
@@ -148,6 +152,17 @@
 						{#if s.status === 'voting' || s.status === 'revealing'}
 							{#if cp.images[pid]}
 								<img src={cp.images[pid]} alt="" class="flex-1 w-full object-contain min-h-0" />
+							{:else}
+								<div
+									class="flex-1 flex flex-col items-center justify-center text-center min-h-0 border border-red-500/40 bg-red-500/5 p-4"
+								>
+									<div class="text-6xl mb-3">{cp.errors?.[pid]?.code === 'prompt_blocked' ? '🚫' : '⚠️'}</div>
+									<div class="text-2xl text-red-300">
+										{cp.errors?.[pid]?.code === 'prompt_blocked'
+											? 'Prompt geblokkeerd door het filter'
+											: 'Geen afbeelding'}
+									</div>
+								</div>
 							{/if}
 							{#if s.status === 'voting' || s.status === 'revealing'}
 								<div class="mt-2">
@@ -164,8 +179,21 @@
 								</div>
 							{/if}
 						{:else if s.status === 'generating'}
-							<div class="flex-1 flex items-center justify-center text-2xl text-gray-400">
-								{cp.imageReady[pid] ? '✅' : 'Generating…'}
+							<div class="flex-1 flex flex-col items-center justify-center text-center text-2xl">
+								{#if cp.imageReady[pid]}
+									<span class="text-gray-400">✅</span>
+								{:else if cp.errors?.[pid]}
+									<span class="text-5xl mb-2">
+										{cp.errors?.[pid]?.code === 'prompt_blocked' ? '🚫' : '⚠️'}
+									</span>
+									<span class="text-red-300">
+										{cp.errors?.[pid]?.code === 'prompt_blocked'
+											? 'Geblokkeerd — nieuwe poging'
+											: 'Mislukt — nieuwe poging'}
+									</span>
+								{:else}
+									<span class="text-gray-400">Generating…</span>
+								{/if}
 							</div>
 						{:else}
 							<div class="flex-1 p-2 text-2xl italic overflow-auto whitespace-pre-wrap break-words">

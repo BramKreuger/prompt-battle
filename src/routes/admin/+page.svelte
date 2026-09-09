@@ -165,11 +165,35 @@
 								🎬 Generate both images
 							</button>
 						{:else if s.status === 'generating'}
-							<p>Generating images…</p>
-							<div class="grid grid-cols-2 gap-2 text-sm mt-2">
-								<div class="border p-2">P1: {cp.imageReady[1] ? '✅ ready' : '…'}</div>
-								<div class="border p-2">P2: {cp.imageReady[2] ? '✅ ready' : '…'}</div>
+							<div class="flex items-center justify-between">
+								<p>Generating images…</p>
+								{#if cp.generateDeadlineTs}
+									<Countdown deadlineTs={cp.generateDeadlineTs} size="sm" />
+								{/if}
 							</div>
+							<div class="grid grid-cols-2 gap-2 text-sm mt-2">
+								{#each [1, 2] as pid}
+									<div class="border p-2 {cp.errors?.[pid] ? 'border-red-500' : ''}">
+										P{pid}:
+										{#if cp.imageReady[pid]}
+											✅ ready
+										{:else if cp.errors?.[pid]}
+											<span class="text-red-400">
+												{cp.errors[pid].code === 'prompt_blocked' ? '🚫 blocked' : '⚠️ failed'} — retrying
+											</span>
+											<div class="text-xs text-gray-400 mt-1">{cp.errors[pid].reason}</div>
+										{:else}
+											…
+										{/if}
+									</div>
+								{/each}
+							</div>
+							<p class="text-xs text-gray-400 mt-2">
+								Voting opens automatically once both images land, or when this window runs out.
+							</p>
+							<button class="mt-2 border p-2 text-sm" on:click={() => sendAction('resolveGeneration')}>
+								⏭️ Skip to voting now
+							</button>
 						{:else if s.status === 'voting'}
 							<p class="mb-2">Voting open. Audience votes at <code>/vote</code>.</p>
 							<div class="grid grid-cols-2 gap-2 text-lg">

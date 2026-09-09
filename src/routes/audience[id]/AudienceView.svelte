@@ -12,6 +12,8 @@
 	let showImage = false;
 	let isGenerating = false;
 	let isCelebrating = false;
+	/** Why this player has no image, when generation was refused or failed. */
+	let failureText = '';
 
 	const socket = io();
 
@@ -32,6 +34,18 @@
 		if (String(payload.userId) === $page.params.id) {
 			showImage = true;
 			imageUrl = payload.imageUrl;
+			failureText = '';
+		}
+	});
+
+	socket.on('imageFailed', (payload) => {
+		if (String(payload.userId) === $page.params.id) {
+			showImage = false;
+			imageUrl = '';
+			failureText =
+				payload.code === 'prompt_blocked'
+					? 'Prompt geblokkeerd door het contentfilter — nieuwe poging…'
+					: 'Genereren mislukt — nieuwe poging…';
 		}
 	});
 
@@ -56,6 +70,7 @@
 		showImage = false;
 		isGenerating = false;
 		isCelebrating = false;
+		failureText = '';
 	}
 
 	function init(el) {
@@ -71,6 +86,9 @@
 	{/if}
 	{#if !showImage}
 		<div class=" h-full w-full p-8">
+			{#if failureText}
+				<p class="text-3xl md:text-5xl text-red-300">🚫 {failureText}</p>
+			{/if}
 			<p class="text-4xl md:text-7xl" style="font-size: {fontSize}px;">
 				{prompt}
 			</p>

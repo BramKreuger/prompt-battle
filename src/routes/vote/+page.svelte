@@ -66,6 +66,15 @@
 					<div class="text-2xl mb-2">{pid === 1 ? match.p1 : match.p2}</div>
 					{#if cp.images[pid]}
 						<img src={cp.images[pid]} alt="" class="flex-1 w-full object-contain min-h-0" />
+					{:else}
+						<div class="flex-1 flex flex-col items-center justify-center text-center min-h-0 p-3">
+							<div class="text-4xl mb-2">{cp.errors?.[pid]?.code === 'prompt_blocked' ? '🚫' : '⚠️'}</div>
+							<div class="text-sm opacity-80">
+								{cp.errors?.[pid]?.code === 'prompt_blocked'
+									? 'Prompt geblokkeerd — geen afbeelding'
+									: 'Geen afbeelding'}
+							</div>
+						</div>
 					{/if}
 					<div class="mt-2 text-sm italic opacity-70 break-words">"{cp.typed[pid]}"</div>
 				</button>

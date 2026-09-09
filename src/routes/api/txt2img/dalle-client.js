@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { env } from '$env/dynamic/private';
-import { describeOpenAIError } from '$lib/server/openai-error';
+import { toImageGenerationError } from '$lib/server/openai-error';
 
 // dall-e-2 and dall-e-3 were shut down on 2026-05-12. gpt-image-2 is the
 // current image model. It always returns base64, never a hosted URL.
@@ -35,8 +35,11 @@ export async function createImage(prompt) {
 		if (!b64) throw Error('Image API returned no image data');
 		return { url: `data:image/${OUTPUT_FORMAT};base64,${b64}` };
 	} catch (err) {
-		const detail = describeOpenAIError(err);
-		console.error('Image generation failed:', detail);
-		throw new Error(detail);
+		// Classify here, while the SDK error (status + error.code) is still
+		// intact: a prompt the moderation filter refused has to reach the player
+		// as retryable, not as a generic 500.
+		const failure = toImageGenerationError(err);
+		console.error(`Image generation failed (${failure.code}):`, failure.message);
+		throw failure;
 	}
 }

@@ -70,7 +70,18 @@ const webSocketServerPlugin = {
 
 			socket.on('tournament:action', (action) => {
 				dispatch(action);
-				broadcast();
+				// A vote changes two small numbers, but a full broadcast would ship
+				// the current prompt's two images (~360KB) to every phone in the
+				// room, for every vote. Patch instead.
+				if (action?.type === 'vote') {
+					const s = getState();
+					io.emit('tournament:votes', {
+						votes: s.currentPrompt.votes,
+						votedClients: s.currentPrompt.votedClients
+					});
+				} else {
+					broadcast();
+				}
 			});
 
 			socket.on('promptChange', ({ userId, prompt }) => {
@@ -78,7 +89,10 @@ const webSocketServerPlugin = {
 				const pid = Number(userId);
 				if (pid === 1 || pid === 2) {
 					dispatch({ type: 'typing', payload: { playerId: pid, text: prompt } });
-					broadcast();
+					// One keystroke must not rebroadcast the entire tournament. This
+					// fires on every letter both players type, and a full broadcast
+					// carried up to megabytes of images with it.
+					io.emit('tournament:typing', { playerId: pid, text: prompt });
 				}
 			});
 

@@ -290,11 +290,15 @@ export function dispatch(action) {
 			const match = currentMatch();
 			if (match) {
 				match.scores[winner] += 1;
+				// Deliberately without the images: they are ~180KB of base64 each,
+				// nothing renders past rounds, and this whole state object goes to
+				// every connected client on every broadcast. Keeping them grew the
+				// state by ~360KB per prompt, which by a 16-player tournament would
+				// pass the 10MB socket ceiling and silently kill the connections.
 				match.promptHistory.push({
 					text: state.currentPrompt.text,
 					difficulty: state.currentPrompt.difficulty,
 					typed: { ...state.currentPrompt.typed },
-					images: { ...state.currentPrompt.images },
 					errors: { ...state.currentPrompt.errors },
 					votes: { ...state.currentPrompt.votes },
 					winner

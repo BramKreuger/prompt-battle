@@ -15,7 +15,7 @@ export function getSocket() {
 		// Two high-frequency updates arrive as patches rather than whole states,
 		// because the full state carries the current prompt's images: one per
 		// keystroke while players type, and one per audience vote.
-		socket.on('tournament:typing', ({ playerId, text }) => {
+		socket.on('tournament:typing', (/** @type {any} */ { playerId, text }) => {
 			tournamentState.update((s) => {
 				if (!s?.currentPrompt?.typed) return s;
 				return {
@@ -28,7 +28,7 @@ export function getSocket() {
 			});
 		});
 
-		socket.on('tournament:votes', ({ votes, votedClients }) => {
+		socket.on('tournament:votes', (/** @type {any} */ { votes, votedClients }) => {
 			tournamentState.update((s) => {
 				if (!s?.currentPrompt) return s;
 				return { ...s, currentPrompt: { ...s.currentPrompt, votes, votedClients } };

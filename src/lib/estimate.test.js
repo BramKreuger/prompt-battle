@@ -51,8 +51,8 @@ describe('estimateTournament', () => {
 describe('formatDuration', () => {
 	it('rounds to 5 minutes and switches to hours', () => {
 		expect(formatDuration(35 * 60)).toBe('35 min');
-		expect(formatDuration(60 * 60)).toBe('1 u');
-		expect(formatDuration(85 * 60)).toBe('1 u 25 min');
+		expect(formatDuration(60 * 60)).toBe('1 hr');
+		expect(formatDuration(85 * 60)).toBe('1 hr 25 min');
 	});
 
 	it('never rounds down to nothing', () => {

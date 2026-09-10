@@ -105,7 +105,7 @@
 				ok: false,
 				retryable: data.retryable !== false,
 				code: data.code || 'error',
-				reason: data.reason || data.message || 'kon niet gegenereerd worden.'
+				reason: data.reason || data.message || 'It could not be generated.'
 			};
 		} catch (err) {
 			const aborted = /** @type {any} */ (err)?.name === 'AbortError';
@@ -115,8 +115,8 @@
 				retryable: aborted,
 				code: aborted ? 'timeout' : 'error',
 				reason: aborted
-					? 'duurde te lang om te genereren. Probeer het nog een keer!'
-					: 'kon niet verstuurd worden. Probeer het nog een keer!'
+					? 'Generating took too long. Try again!'
+					: 'Your prompt could not be sent. Try again!'
 			};
 		} finally {
 			clearTimeout(timeout);
@@ -200,16 +200,16 @@
 		<div class="h-full flex flex-col">
 			<div class="border-2 border-red-500 bg-red-500/10 p-4 mb-3">
 				<div class="text-sm text-red-300 uppercase tracking-widest">
-					{failure.code === 'prompt_blocked' ? '🚫 Geblokkeerd' : '⚠️ Mislukt'}
+					{failure.code === 'prompt_blocked' ? '🚫 Blocked' : '⚠️ Failed'}
 				</div>
 				<div class="text-2xl md:text-4xl mt-1">{failure.reason}</div>
-				<div class="text-sm text-gray-400 mt-2 break-words">Je typte: "{failure.prompt}"</div>
+				<div class="text-sm text-gray-400 mt-2 break-words">You typed: "{failure.prompt}"</div>
 			</div>
 			<div class="flex items-center justify-between mb-2">
-				<div class="text-sm text-gray-400 uppercase">Pas je prompt aan</div>
+				<div class="text-sm text-gray-400 uppercase">Adjust your prompt</div>
 				{#if s.currentPrompt?.generateDeadlineTs}
 					<div class="flex items-baseline gap-2">
-						<span class="text-sm text-gray-400">Tijd om opnieuw te proberen</span>
+						<span class="text-sm text-gray-400">Time left to retry</span>
 						<Countdown deadlineTs={s.currentPrompt.generateDeadlineTs} size="md" />
 					</div>
 				{/if}
@@ -217,7 +217,7 @@
 			<div class="flex-1 p-4 border-2 border-turquoise min-h-0">
 				<textarea
 					class="w-full h-full bg-inherit text-turquoise text-2xl md:text-4xl"
-					placeholder="Type een nieuwe prompt…"
+					placeholder="Type a new prompt…"
 					bind:value={prompt}
 					use:initInput
 				/>
@@ -227,7 +227,7 @@
 				disabled={!prompt.trim()}
 				on:click={() => submit()}
 			>
-				🎬 Opnieuw genereren
+				🎬 Generate again
 			</button>
 		</div>
 	{:else if s.status === 'generating' || isGenerating}
@@ -235,7 +235,7 @@
 			<LoadingSpinnerWave size="200" color="#6EEBEA" unit="px" duration="1s" />
 			{#if retrying}
 				<div class="text-xl text-yellow-300">
-					Het filter weigerde je prompt — automatisch tweede poging…
+					The filter rejected your prompt — trying again automatically…
 				</div>
 			{/if}
 		</div>

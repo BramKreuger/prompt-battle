@@ -29,7 +29,7 @@ describe('toImageGenerationError', () => {
 			})
 		);
 		expect(failure.code).toBe('prompt_blocked');
-		expect(failure.reason).toMatch(/contentfilter/i);
+		expect(failure.reason).toMatch(/content filter/i);
 	});
 
 	it('names both likely causes, since the API block never says why', () => {
@@ -44,11 +44,11 @@ describe('toImageGenerationError', () => {
 		);
 		// Verified against gpt-image-2: both a character and an artist's style
 		// ("in the style of salvador dali") produce this same blank refusal.
-		expect(failure.reason).toMatch(/film of game/);
-		expect(failure.reason).toMatch(/kunstenaar/);
+		expect(failure.reason).toMatch(/film or game/);
+		expect(failure.reason).toMatch(/artist/);
 		// The filter refused an identical prompt on 1 of 3 tries, so "try again"
 		// is real advice, not a platitude.
-		expect(failure.reason).toMatch(/nog een keer/);
+		expect(failure.reason).toMatch(/Try again/);
 	});
 
 	it('names copyright when the API does', () => {
@@ -60,7 +60,7 @@ describe('toImageGenerationError', () => {
 			})
 		);
 		expect(failure.code).toBe('prompt_blocked');
-		expect(failure.reason).toMatch(/auteursrechtelijk beschermd/);
+		expect(failure.reason).toMatch(/copyrighted/);
 	});
 
 	it('separates a rate limit from a blocked prompt', () => {
@@ -73,7 +73,7 @@ describe('toImageGenerationError', () => {
 	it('falls back to a generic technical failure', () => {
 		const failure = toImageGenerationError(new Error('socket hang up'));
 		expect(failure.code).toBe('error');
-		expect(failure.reason).toMatch(/technisch iets mis/);
+		expect(failure.reason).toMatch(/went wrong/);
 	});
 
 	it('never leaks an API key into the server-side detail', () => {
@@ -95,19 +95,19 @@ describe('toImageGenerationError', () => {
 		const failure = blockedPromptError({ kind: 'copyright', subject: 'Scrooge McDuck' });
 		expect(failure.code).toBe('prompt_blocked');
 		expect(failure.reason).toBe(
-			'Scrooge McDuck is auteursrechtelijk beschermd — dat maakt OpenAI niet. Probeer iets anders!'
+			'Scrooge McDuck is copyrighted — OpenAI will not draw it. Try something else!'
 		);
 	});
 
 	it('falls back to a generic copyright reason when it cannot name one', () => {
 		const failure = blockedPromptError({ kind: 'copyright', subject: null });
-		expect(failure.reason).toMatch(/auteursrechtelijk beschermd/);
+		expect(failure.reason).toMatch(/copyrighted/);
 	});
 
 	it('uses the safety wording for unsafe content, not the copyright wording', () => {
 		const failure = blockedPromptError({ kind: 'unsafe', subject: 'graphic gore' });
-		expect(failure.reason).toMatch(/onschuldig/);
-		expect(failure.reason).not.toMatch(/auteursrecht/);
+		expect(failure.reason).toMatch(/innocent/);
+		expect(failure.reason).not.toMatch(/copyright/i);
 	});
 
 	it('marks an API refusal retryable, because that filter is not consistent', () => {
@@ -127,7 +127,7 @@ describe('toImageGenerationError', () => {
 		const failure = emptyPromptError();
 		expect(failure.code).toBe('empty_prompt');
 		expect(failure.retryable).toBe(false);
-		expect(failure.reason).toMatch(/niets getypt/);
+		expect(failure.reason).toMatch(/not typed anything/);
 	});
 
 	it('retries a rate limit and a technical hiccup', () => {

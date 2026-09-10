@@ -54,9 +54,9 @@ export function estimateTournament({ size, promptsPerMatch, promptTimerSeconds }
 }
 
 /**
- * "1 u 25 min" / "35 min". Rounded, since this is an estimate — coarsely for a
- * whole tournament, but per minute for a single match, where 5-minute buckets
- * would collapse the whole range into one number.
+ * "1 hr 25 min" / "35 min". Rounded, since this is an estimate — coarsely for
+ * a whole tournament, but per minute for a single match, where 5-minute
+ * buckets would collapse the whole range into one number.
  *
  * @param {number} seconds
  * @param {{ round?: number }} [opts]
@@ -66,5 +66,5 @@ export function formatDuration(seconds, { round = 5 } = {}) {
 	const hours = Math.floor(rounded / 60);
 	const mins = rounded % 60;
 	if (!hours) return `${mins} min`;
-	return mins ? `${hours} u ${mins} min` : `${hours} u`;
+	return mins ? `${hours} hr ${mins} min` : `${hours} hr`;
 }

@@ -44,8 +44,8 @@
 			imageUrl = '';
 			failureText =
 				payload.code === 'prompt_blocked'
-					? 'Prompt geblokkeerd door het contentfilter — nieuwe poging…'
-					: 'Genereren mislukt — nieuwe poging…';
+					? 'Prompt blocked by the content filter — retrying…'
+					: 'Generating failed — retrying…';
 		}
 	});
 

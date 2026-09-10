@@ -111,7 +111,7 @@
 
 	<div class="mb-6 border border-turquoise p-4">
 		<div class="flex items-baseline justify-between flex-wrap gap-2">
-			<span class="text-sm text-gray-400 uppercase tracking-widest">Verwachte speelduur</span>
+			<span class="text-sm text-gray-400 uppercase tracking-widest">Expected running time</span>
 			<span class="text-4xl text-turquoise">
 				{formatDuration(estimate.minSeconds)} – {formatDuration(estimate.maxSeconds)}
 			</span>
@@ -125,27 +125,31 @@
 			)} per match
 		</p>
 		<details class="mt-3 text-sm text-gray-400">
-			<summary class="cursor-pointer">Waar komt dit vandaan?</summary>
+			<summary class="cursor-pointer">Where does this come from?</summary>
 			<ul class="mt-2 space-y-1">
 				<li>
-					Prompten: <span class="text-white">{estimate.typing}s</span>
+					Typing a prompt: <span class="text-white">{estimate.typing}s</span>
 					{#if estimate.timerOff}
-						<span class="text-yellow-300">(timer staat uit — aanname)</span>
+						<span class="text-yellow-300">(timer is off — assumed)</span>
 					{/if}
 				</li>
-				<li>Beeld genereren: <span class="text-white">{TIMINGS.generate}s</span> (gemeten)</li>
-				<li>Publiek stemmen: <span class="text-white">{TIMINGS.voting}s</span></li>
-				<li>Winnaar tonen: <span class="text-white">{TIMINGS.reveal}s</span></li>
 				<li>
-					Wisselen van stoelen + match-intro:
+					Generating the image: <span class="text-white">{TIMINGS.generate}s</span> (measured)
+				</li>
+				<li>Audience voting: <span class="text-white">{TIMINGS.voting}s</span></li>
+				<li>Showing the winner: <span class="text-white">{TIMINGS.reveal}s</span></li>
+				<li>
+					Swapping seats + match intro:
 					<span class="text-white">{TIMINGS.matchChangeover}s</span> per match
 				</li>
-				<li>Kampioen vieren: <span class="text-white">{TIMINGS.championCelebration}s</span></li>
+				<li>
+					Celebrating the champion: <span class="text-white">{TIMINGS.championCelebration}s</span>
+				</li>
 			</ul>
 			<p class="mt-2">
-				Eén prompt kost dus ongeveer <span class="text-white">{estimate.perPrompt}s</span>. Bij
-				gelijkspel worden extra prompts gespeeld, dus de bovenkant kan iets uitlopen. Pauzes en
-				gepraat tussendoor zitten er niet in.
+				So one prompt takes about <span class="text-white">{estimate.perPrompt}s</span>. A tie adds
+				extra prompts, so the upper end can run over. Breaks and talking between rounds are not
+				included.
 			</p>
 		</details>
 	</div>

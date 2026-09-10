@@ -242,8 +242,8 @@
 									</div>
 									<div class="text-2xl text-red-300">
 										{cp.errors?.[pid]?.code === 'prompt_blocked'
-											? 'Prompt geblokkeerd door het filter'
-											: 'Geen afbeelding'}
+											? 'Prompt blocked by the filter'
+											: 'No image'}
 									</div>
 								</div>
 							{/if}
@@ -271,8 +271,8 @@
 									</span>
 									<span class="text-red-300">
 										{cp.errors?.[pid]?.code === 'prompt_blocked'
-											? 'Geblokkeerd — nieuwe poging'
-											: 'Mislukt — nieuwe poging'}
+											? 'Blocked — retrying'
+											: 'Failed — retrying'}
 									</span>
 								{:else}
 									<span class="text-gray-400">Generating…</span>
@@ -314,10 +314,10 @@
 {:else}
 	<button
 		on:click={toggleMute}
-		title="Mute alle muziek en effecten"
+		title="Mute all music and effects"
 		class="fixed bottom-4 right-4 px-3 py-2 text-sm z-40 border border-white/40 bg-black/60 text-white hover:opacity-90"
 	>
-		{muted ? '🔇 Geluid uit' : '🔊 Geluid aan'}
+		{muted ? '🔇 Sound off' : '🔊 Sound on'}
 	</button>
 {/if}
 

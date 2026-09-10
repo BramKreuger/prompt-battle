@@ -27,7 +27,7 @@ export function describeOpenAIError(err) {
  * browser (see the redaction note above), and it reads badly on a stage screen.
  */
 const REASONS = {
-	copyright: 'Dit is auteursrechtelijk beschermd — dat maakt OpenAI niet. Probeer iets anders!',
+	copyright: 'That is copyrighted — OpenAI will not draw it. Try something else!',
 	// Reached when the pre-screen did not see it coming, so it has to cover
 	// every likely cause. Measured against gpt-image-2: the filter is not
 	// deterministic — "a surreal dreamlike landscape with melting clocks" was
@@ -36,12 +36,12 @@ const REASONS = {
 	// artists by name ("in the style of salvador dali" is blocked, while van
 	// gogh and picasso are not), hence the hint about dropping names.
 	safety:
-		'Het contentfilter van OpenAI weigerde deze prompt. Probeer het nog een keer — vaak lukt het dan wél. Zo niet: laat namen weg (een figuur uit een film of game, of een kunstenaar) en omschrijf het zelf!',
+		"OpenAI's content filter rejected this prompt. Try again — that often works. If it keeps failing, drop the name (a film or game character, or an artist) and describe it in your own words!",
 	unsafe:
-		'Deze prompt komt niet door het contentfilter van OpenAI. Probeer iets anders — houd het een beetje onschuldig!',
-	rate_limited: 'De beeld-API zit even vol. Probeer het direct nog een keer!',
-	error: 'Er ging technisch iets mis bij het genereren. Probeer het nog een keer!',
-	empty: 'Je hebt nog niets getypt. Typ een prompt en probeer het opnieuw.'
+		"OpenAI's content filter rejected this prompt. Try something else — keep it reasonably innocent!",
+	rate_limited: 'The image API is busy right now. Try again straight away!',
+	error: 'Something went wrong while generating. Try again!',
+	empty: 'You have not typed anything yet. Type a prompt and try again.'
 };
 
 /**
@@ -66,7 +66,7 @@ export class ImageGenerationError extends Error {
 
 /**
  * The reason for a prompt the pre-screen caught, naming the character when it
- * managed to identify one — "Scrooge McDuck is auteursrechtelijk beschermd" is
+ * managed to identify one — "Scrooge McDuck is copyrighted" is
  * a far more useful thing to read on stage than a generic filter message.
  *
  * @param {{ kind: 'copyright' | 'unsafe', subject: string | null }} screened
@@ -76,7 +76,7 @@ export function blockedPromptError(screened) {
 		screened.kind === 'unsafe'
 			? REASONS.unsafe
 			: screened.subject
-			? `${screened.subject} is auteursrechtelijk beschermd — dat maakt OpenAI niet. Probeer iets anders!`
+			? `${screened.subject} is copyrighted — OpenAI will not draw it. Try something else!`
 			: REASONS.copyright;
 	// Not retryable: the pre-screen is deterministic, so the same prompt will
 	// be refused again. The player has to change it.

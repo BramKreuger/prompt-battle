@@ -1,6 +1,11 @@
 <script>
 	import { onMount } from 'svelte';
-	import { tournamentState, sendAction, getSocket, getOrCreateClientId } from '$lib/tournament-client.js';
+	import {
+		tournamentState,
+		sendAction,
+		getSocket,
+		getOrCreateClientId
+	} from '$lib/tournament-client.js';
 
 	let clientId;
 	let lastVotedPromptKey = null;
@@ -16,10 +21,11 @@
 	$: match = s?.bracket?.[s.currentRoundIdx]?.[s.currentMatchIdx];
 	$: cp = s?.currentPrompt;
 	$: promptKey = s
-		? `${s.currentRoundIdx}-${s.currentMatchIdx}-${match?.promptHistory?.length ?? 0}-${cp?.text ?? ''}`
+		? `${s.currentRoundIdx}-${s.currentMatchIdx}-${match?.promptHistory?.length ?? 0}-${
+				cp?.text ?? ''
+		  }`
 		: null;
-	$: alreadyVoted =
-		cp && clientId ? cp.votedClients?.includes(clientId) : false;
+	$: alreadyVoted = cp && clientId ? cp.votedClients?.includes(clientId) : false;
 
 	function vote(choice) {
 		if (!clientId) return;
@@ -43,7 +49,8 @@
 			<div>
 				<div class="text-2xl text-gray-400 mb-2">Voting is closed right now.</div>
 				<div class="text-lg">
-					Current match: <span class="text-turquoise">{match.p1}</span> vs <span class="text-turquoise">{match.p2}</span>
+					Current match: <span class="text-turquoise">{match.p1}</span> vs
+					<span class="text-turquoise">{match.p2}</span>
 				</div>
 				<div class="text-sm mt-4 text-gray-500">
 					Status: <code>{s.status}</code> — this page will update when voting opens.
@@ -59,7 +66,9 @@
 		<div class="flex-1 grid grid-cols-2 gap-3 min-h-0">
 			{#each [1, 2] as pid}
 				<button
-					class="border-2 {alreadyVoted ? 'opacity-60 cursor-not-allowed' : 'hover:bg-turquoise hover:text-black'} p-3 flex flex-col min-h-0"
+					class="border-2 {alreadyVoted
+						? 'opacity-60 cursor-not-allowed'
+						: 'hover:bg-turquoise hover:text-black'} p-3 flex flex-col min-h-0"
 					on:click={() => vote(pid)}
 					disabled={alreadyVoted}
 				>
@@ -68,11 +77,13 @@
 						<img src={cp.images[pid]} alt="" class="flex-1 w-full object-contain min-h-0" />
 					{:else}
 						<div class="flex-1 flex flex-col items-center justify-center text-center min-h-0 p-3">
-							<div class="text-4xl mb-2">{cp.errors?.[pid]?.code === 'prompt_blocked' ? '🚫' : '⚠️'}</div>
+							<div class="text-4xl mb-2">
+								{cp.errors?.[pid]?.code === 'prompt_blocked' ? '🚫' : '⚠️'}
+							</div>
 							<div class="text-sm opacity-80">
 								{cp.errors?.[pid]?.code === 'prompt_blocked'
-									? 'Prompt geblokkeerd — geen afbeelding'
-									: 'Geen afbeelding'}
+									? 'Prompt blocked — no image'
+									: 'No image'}
 							</div>
 						</div>
 					{/if}

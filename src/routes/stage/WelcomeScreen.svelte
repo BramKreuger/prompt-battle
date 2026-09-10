@@ -15,56 +15,64 @@
 	export let config = null;
 
 	$: timerLabel = config?.promptTimerSeconds
-		? `${config.promptTimerSeconds} seconden`
-		: 'een paar minuten';
+		? `${config.promptTimerSeconds} seconds`
+		: 'a couple of minutes';
+	// Once the host has built the bracket the real number is known; before that,
+	// name the sizes actually played so people know what they are signing up for.
+	$: playerCountLabel = config?.players?.length
+		? `${config.players.length} players`
+		: '4 or 8 players';
 </script>
 
 <div class="slide flex-1 min-h-0 flex flex-col pb-10">
 	<div class="text-center">
 		<h1 class="title text-turquoise">PROMPT BATTLE</h1>
-		<p class="subtitle text-gray-300">Wie schrijft de beste prompt? Het publiek beslist.</p>
+		<p class="subtitle text-gray-300">Who writes the best prompt? The audience decides.</p>
 	</div>
 
 	<div class="flex-1 min-h-0 flex gap-5 mt-4">
 		<!-- How it works -->
 		<div class="flex-[2] min-h-0 border border-white/30 p-5 flex flex-col overflow-hidden">
-			<div class="label text-gray-400 uppercase tracking-widest">Hoe werkt het?</div>
+			<div class="label text-gray-400 uppercase tracking-widest">How it works</div>
 			<ol class="steps">
-				<li><span class="text-turquoise">1.</span> Twee spelers krijgen dezelfde opdracht.</li>
 				<li>
-					<span class="text-turquoise">2.</span> Je hebt
-					<span class="text-turquoise">{timerLabel}</span> om een prompt te typen.
+					<span class="text-turquoise">1.</span>
+					<span class="text-turquoise">{playerCountLabel}</span> compete, one on one on stage.
 				</li>
-				<li><span class="text-turquoise">3.</span> De AI maakt van beide prompts een beeld.</li>
 				<li>
-					<span class="text-turquoise">4.</span> Het publiek stemt. Wie wint, gaat door naar de volgende
-					ronde.
+					<span class="text-turquoise">2.</span> Both get the same challenge and
+					<span class="text-turquoise">{timerLabel}</span> to type a prompt.
+				</li>
+				<li><span class="text-turquoise">3.</span> The AI turns both prompts into an image.</li>
+				<li>
+					<span class="text-turquoise">4.</span> The audience votes. The winner moves on to the next
+					round.
 				</li>
 			</ol>
 			<div class="tip mt-auto text-gray-300">
-				<span class="text-yellow-300">Tip:</span> noem geen bekende figuren (Mickey Mouse, Superman,
-				Dali) — die weigert de AI. Omschrijf ze in je eigen woorden, dát is de kunst.
+				<span class="text-yellow-300">Tip:</span> don't name famous characters (Mickey Mouse, Superman,
+				Dali) — the AI refuses those. Describe them in your own words; that is the real skill.
 			</div>
 		</div>
 
 		<!-- The two things the audience can act on -->
 		<div class="flex-1 min-h-0 flex flex-col gap-4">
 			<div class="border-2 border-turquoise p-4">
-				<div class="cta text-turquoise">Meedoen?</div>
+				<div class="cta text-turquoise">Want to play?</div>
 				<p class="body text-gray-200">
-					Meld je aan bij de host. Je speelt één tegen één op het podium — typen kun je al.
+					Sign up with the host — {playerCountLabel} take part. No experience needed.
 				</p>
 			</div>
 
 			<div
 				class="border border-white/30 p-4 flex-1 min-h-0 flex flex-col items-center justify-center overflow-hidden"
 			>
-				<div class="cta">Alleen stemmen?</div>
-				<p class="body text-gray-300">Scan met je telefoon</p>
+				<div class="cta">Just voting?</div>
+				<p class="body text-gray-300">Scan with your phone</p>
 				{#if voteQrDataUrl}
 					<img
 						src={voteQrDataUrl}
-						alt="QR-code om te stemmen"
+						alt="QR code to vote"
 						class="mt-2 min-h-0 flex-1 object-contain rounded-lg"
 					/>
 				{/if}
@@ -75,7 +83,7 @@
 	{#if config?.players?.length}
 		<div class="mt-4 text-center">
 			<div class="label text-gray-400 uppercase tracking-widest">
-				Deelnemers ({config.players.length})
+				Players ({config.players.length})
 			</div>
 			<div class="players flex flex-wrap justify-center gap-x-5">
 				{#each config.players as name}
@@ -84,7 +92,7 @@
 			</div>
 		</div>
 	{:else}
-		<p class="body mt-4 text-center text-gray-500">De host stelt het toernooi nog samen…</p>
+		<p class="body mt-4 text-center text-gray-500">The host is still setting up the tournament…</p>
 	{/if}
 </div>
 

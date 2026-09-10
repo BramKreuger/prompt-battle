@@ -18,6 +18,9 @@
 	/** Last failed attempt: `{ code, reason, prompt }`, drives the retry screen. */
 	/** @type {{ code: string, reason: string, prompt: string } | null} */
 	let failure = null;
+	/** Shown while the automatic second attempt is running. */
+	let retrying = false;
+	let restoredTyped = false;
 	/** @type {any} */
 	let socket;
 	/** @type {any} */
@@ -63,6 +66,7 @@
 		isGenerating = false;
 		isCelebrating = false;
 		failure = null;
+		retrying = false;
 	}
 
 	/**
@@ -80,12 +84,12 @@
 		socket?.emit('imageFailed', { userId: $page.params.id, code, reason });
 	}
 
-	async function submit() {
-		const attempt = prompt;
-		failure = null;
-		showImage = false;
-		imageUrl = '';
-		isGenerating = true;
+	/**
+	 * One call to the image API. Never throws; returns what happened.
+	 *
+	 * @param {string} attempt
+	 */
+	async function attemptGenerate(attempt) {
 		const abort = new AbortController();
 		const timeout = setTimeout(() => abort.abort(), GENERATE_TIMEOUT_MS);
 		try {
@@ -95,27 +99,66 @@
 				headers: { 'content-type': 'application/json' },
 				signal: abort.signal
 			});
-			const jsonData = await response.json().catch(() => ({}));
-			if (!response.ok) {
-				failWith(
-					jsonData.code || 'error',
-					jsonData.reason || jsonData.message || 'kon niet gegenereerd worden.',
-					attempt
-				);
-				return;
-			}
-			isGenerating = false;
-			showImage = true;
-			imageUrl = jsonData.url;
-			socket.emit('imageReady', { userId: $page.params.id, imageUrl });
+			const data = await response.json().catch(() => ({}));
+			if (response.ok) return { ok: true, url: data.url };
+			return {
+				ok: false,
+				retryable: data.retryable !== false,
+				code: data.code || 'error',
+				reason: data.reason || data.message || 'kon niet gegenereerd worden.'
+			};
 		} catch (err) {
-			if (/** @type {any} */ (err)?.name === 'AbortError') {
-				failWith('timeout', 'duurde te lang om te genereren. Probeer het nog een keer!', attempt);
-			} else {
-				failWith('error', 'kon niet verstuurd worden. Probeer het nog een keer!', attempt);
-			}
+			const aborted = /** @type {any} */ (err)?.name === 'AbortError';
+			return {
+				ok: false,
+				// A timeout is worth one more shot; a dead connection is not.
+				retryable: aborted,
+				code: aborted ? 'timeout' : 'error',
+				reason: aborted
+					? 'duurde te lang om te genereren. Probeer het nog een keer!'
+					: 'kon niet verstuurd worden. Probeer het nog een keer!'
+			};
 		} finally {
 			clearTimeout(timeout);
+		}
+	}
+
+	/**
+	 * Generate, retrying once automatically when the failure is the kind that
+	 * a second attempt fixes.
+	 *
+	 * OpenAI's filter refuses innocent prompts: a playtest saw it reject "the
+	 * physical form of deja vu, painted in bright colours" as sexual, and an
+	 * identical prompt refused on 1 of 3 attempts. Making the player read a
+	 * banner and press a button for that would waste the round's airtime, so
+	 * the second attempt is silent. A prompt the pre-screen caught (a named
+	 * character) is not retried — that answer will not change.
+	 */
+	async function submit() {
+		const attempt = prompt;
+		failure = null;
+		retrying = false;
+		showImage = false;
+		imageUrl = '';
+		isGenerating = true;
+
+		for (let tryNo = 1; tryNo <= 2; tryNo++) {
+			const result = await attemptGenerate(attempt);
+			if (result.ok) {
+				isGenerating = false;
+				retrying = false;
+				showImage = true;
+				imageUrl = result.url;
+				socket.emit('imageReady', { userId: $page.params.id, imageUrl });
+				return;
+			}
+			if (result.retryable && tryNo === 1) {
+				retrying = true;
+				continue;
+			}
+			retrying = false;
+			failWith(result.code, result.reason, attempt);
+			return;
 		}
 	}
 
@@ -125,6 +168,15 @@
 	}
 
 	$: if (canType && inputEl && document.activeElement !== inputEl) inputEl.focus();
+
+	// A player who reloads mid-round, or whose laptop went to sleep, would
+	// otherwise come back to an empty box with the clock still running: the
+	// text lives in this component, but the server has a copy of it.
+	$: if (!restoredTyped && s?.status === 'prompting' && s.currentPrompt?.typed) {
+		const mine = s.currentPrompt.typed[$page.params.id];
+		if (mine && !prompt) prompt = mine;
+		restoredTyped = true;
+	}
 </script>
 
 <div class="h-full p-6">
@@ -179,8 +231,13 @@
 			</button>
 		</div>
 	{:else if s.status === 'generating' || isGenerating}
-		<div class="h-full flex items-center justify-center">
+		<div class="h-full flex flex-col items-center justify-center gap-6">
 			<LoadingSpinnerWave size="200" color="#6EEBEA" unit="px" duration="1s" />
+			{#if retrying}
+				<div class="text-xl text-yellow-300">
+					Het filter weigerde je prompt — automatisch tweede poging…
+				</div>
+			{/if}
 		</div>
 	{:else if showImage && imageUrl}
 		<div class="h-full flex flex-col">

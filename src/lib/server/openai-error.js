@@ -40,7 +40,8 @@ const REASONS = {
 	unsafe:
 		'Deze prompt komt niet door het contentfilter van OpenAI. Probeer iets anders — houd het een beetje onschuldig!',
 	rate_limited: 'De beeld-API zit even vol. Probeer het direct nog een keer!',
-	error: 'Er ging technisch iets mis bij het genereren. Probeer het nog een keer!'
+	error: 'Er ging technisch iets mis bij het genereren. Probeer het nog een keer!',
+	empty: 'Je hebt nog niets getypt. Typ een prompt en probeer het opnieuw.'
 };
 
 /**
@@ -49,15 +50,17 @@ const REASONS = {
  */
 export class ImageGenerationError extends Error {
 	/**
-	 * @param {'prompt_blocked' | 'rate_limited' | 'error'} code
+	 * @param {'prompt_blocked' | 'rate_limited' | 'error' | 'empty_prompt'} code
 	 * @param {string} reason  player-facing, a complete sentence
 	 * @param {string} detail  server-only, already redacted
+	 * @param {boolean} retryable  is sending the same prompt again worth a try?
 	 */
-	constructor(code, reason, detail) {
+	constructor(code, reason, detail, retryable) {
 		super(detail);
 		this.name = 'ImageGenerationError';
 		this.code = code;
 		this.reason = reason;
+		this.retryable = retryable;
 	}
 }
 
@@ -75,11 +78,19 @@ export function blockedPromptError(screened) {
 			: screened.subject
 			? `${screened.subject} is auteursrechtelijk beschermd — dat maakt OpenAI niet. Probeer iets anders!`
 			: REASONS.copyright;
+	// Not retryable: the pre-screen is deterministic, so the same prompt will
+	// be refused again. The player has to change it.
 	return new ImageGenerationError(
 		'prompt_blocked',
 		reason,
-		`pre-screened as ${screened.kind}: ${screened.subject || 'unnamed'}`
+		`pre-screened as ${screened.kind}: ${screened.subject || 'unnamed'}`,
+		false
 	);
+}
+
+/** The player pressed generate without typing anything. */
+export function emptyPromptError() {
+	return new ImageGenerationError('empty_prompt', REASONS.empty, 'empty prompt', false);
 }
 
 /**
@@ -111,14 +122,19 @@ export function toImageGenerationError(err) {
 
 	if (blockedByCode || blockedByText) {
 		const copyright = /copyright|intellectual property|trademark|likeness/.test(text);
+		// Retryable: this filter refuses innocent prompts. A playtest had it
+		// reject "The physical form of deja vu, painted in bright colours" with
+		// safety_violations=[sexual], and an identical prompt was refused on 1 of
+		// 3 tries. Sending it again really is the first thing to do.
 		return new ImageGenerationError(
 			'prompt_blocked',
 			copyright ? REASONS.copyright : REASONS.safety,
-			detail
+			detail,
+			true
 		);
 	}
 	if (status === 429 || code === 'rate_limit_exceeded') {
-		return new ImageGenerationError('rate_limited', REASONS.rate_limited, detail);
+		return new ImageGenerationError('rate_limited', REASONS.rate_limited, detail, true);
 	}
-	return new ImageGenerationError('error', REASONS.error, detail);
+	return new ImageGenerationError('error', REASONS.error, detail, true);
 }

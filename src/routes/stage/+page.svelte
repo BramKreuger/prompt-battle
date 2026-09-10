@@ -3,6 +3,7 @@
 	import { tournamentState, getSocket } from '$lib/tournament-client.js';
 	import Countdown from '$lib/Countdown.svelte';
 	import Confetti from '../Confetti.svelte';
+	import WelcomeScreen from './WelcomeScreen.svelte';
 	import {
 		audioEnabled,
 		enableAudio,
@@ -173,13 +174,7 @@
 
 <div class="h-full w-full flex flex-col p-6 text-white">
 	{#if !s || s.status === 'idle' || s.status === 'configured'}
-		<div class="flex-1 flex flex-col items-center justify-center gap-6">
-			{#if voteQrDataUrl}
-				<img src={voteQrDataUrl} alt="QR code to vote" class="w-80 h-80 rounded-lg" />
-				<p class="text-2xl text-turquoise">Scan to join the vote!</p>
-			{/if}
-			<p class="text-4xl text-gray-400">Waiting for tournament to start…</p>
-		</div>
+		<WelcomeScreen {voteQrDataUrl} config={s?.config} />
 	{:else if s.status === 'tournament_complete'}
 		<div class="flex-1 flex flex-col items-center justify-center">
 			<div class="text-3xl mb-4">🏆 Champion</div>

@@ -21,8 +21,11 @@ import { describeOpenAIError } from './openai-error.js';
 // `safety` reason in openai-error.js names the artist case explicitly.
 const MODEL = 'gpt-4o-mini';
 // Never let the guard become the slow part: if it has not answered by now, let
-// the image API be the judge instead.
-const TIMEOUT_MS = 3000;
+// the image API be the judge instead. Normal answers land in 0.6-1.4s, but 3s
+// was tight enough to trip on a slow call during a playtest, which sent a
+// named character down the 20s path with the vaguer message. 5s still bounds
+// the wait and only elapses when the call is genuinely hanging.
+const TIMEOUT_MS = 5000;
 
 const SYSTEM = `You screen prompts for a live text-to-image party game before they reach OpenAI's image API.
 Block ONLY these two things:

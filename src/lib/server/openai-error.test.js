@@ -1,9 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { toImageGenerationError, blockedPromptError, describeOpenAIError } from './openai-error.js';
+import {
+	toImageGenerationError,
+	blockedPromptError,
+	emptyPromptError,
+	describeOpenAIError
+} from './openai-error.js';
 
-/** The shape the openai SDK throws for a refused prompt. */
+/**
+ * The shape the openai SDK throws for a refused prompt.
+ *
+ * @param {{ status: number, code: string, message: string }} fields
+ */
 function apiError({ status, code, message }) {
-	const err = new Error(message);
+	const err = /** @type {any} */ (new Error(message));
 	err.status = status;
 	err.code = code;
 	err.error = { code, message };
@@ -99,6 +108,35 @@ describe('toImageGenerationError', () => {
 		const failure = blockedPromptError({ kind: 'unsafe', subject: 'graphic gore' });
 		expect(failure.reason).toMatch(/onschuldig/);
 		expect(failure.reason).not.toMatch(/auteursrecht/);
+	});
+
+	it('marks an API refusal retryable, because that filter is not consistent', () => {
+		// A playtest had it reject "the physical form of deja vu, painted in
+		// bright colours" as sexual. Sending the same prompt again is the fix.
+		const failure = toImageGenerationError(
+			apiError({ status: 400, code: 'moderation_blocked', message: 'safety system' })
+		);
+		expect(failure.retryable).toBe(true);
+	});
+
+	it('marks a pre-screened block NOT retryable, since that answer is fixed', () => {
+		expect(blockedPromptError({ kind: 'copyright', subject: 'Pikachu' }).retryable).toBe(false);
+	});
+
+	it('treats an empty prompt as a typing problem, not a technical one', () => {
+		const failure = emptyPromptError();
+		expect(failure.code).toBe('empty_prompt');
+		expect(failure.retryable).toBe(false);
+		expect(failure.reason).toMatch(/niets getypt/);
+	});
+
+	it('retries a rate limit and a technical hiccup', () => {
+		expect(
+			toImageGenerationError(
+				apiError({ status: 429, code: 'rate_limit_exceeded', message: 'slow down' })
+			).retryable
+		).toBe(true);
+		expect(toImageGenerationError(new Error('socket hang up')).retryable).toBe(true);
 	});
 
 	it('describeOpenAIError still prefers the parsed body message', () => {

@@ -1,7 +1,11 @@
 import { json, error } from '@sveltejs/kit';
 import { createImage as sdCreateImage } from './sd-client';
 import { createImage as dalleCreateImage } from './dalle-client';
-import { blockedPromptError, toImageGenerationError } from '$lib/server/openai-error';
+import {
+	blockedPromptError,
+	emptyPromptError,
+	toImageGenerationError
+} from '$lib/server/openai-error';
 import { prescreenPrompt } from '$lib/server/prompt-guard';
 
 export function GET(params) {
@@ -27,6 +31,17 @@ export async function POST({ request }) {
 		default:
 			throw error(500, { message: 'Unknown image generation engine!' });
 	}
+	// Caught here rather than deeper down, so the player reads "you have not
+	// typed anything" instead of a technical failure. Very easy to hit live:
+	// the host presses Generate before someone has started.
+	if (!prompt || !String(prompt).trim()) {
+		const failure = emptyPromptError();
+		return json(
+			{ code: failure.code, reason: failure.reason, message: failure.reason, retryable: false },
+			{ status: 422 }
+		);
+	}
+
 	try {
 		// Ask a fast model first. The image API takes 19-34s to say "rejected by
 		// the safety system" and never says why; this answers in about a second
@@ -38,7 +53,12 @@ export async function POST({ request }) {
 				const failure = blockedPromptError(screened);
 				console.log('txt2img pre-screened:', failure.message);
 				return json(
-					{ code: failure.code, reason: failure.reason, message: failure.reason },
+					{
+						code: failure.code,
+						reason: failure.reason,
+						message: failure.reason,
+						retryable: failure.retryable
+					},
 					{ status: 422 }
 				);
 			}
@@ -53,7 +73,12 @@ export async function POST({ request }) {
 		// since this endpoint is unauthenticated.
 		console.error(`txt2img failed (${failure.code}):`, failure.message);
 		return json(
-			{ code: failure.code, reason: failure.reason, message: failure.reason },
+			{
+				code: failure.code,
+				reason: failure.reason,
+				message: failure.reason,
+				retryable: failure.retryable
+			},
 			// 422: the request was fine, the prompt was refused. The player screen
 			// keys off `code` to offer a retry instead of a dead end.
 			{ status: failure.code === 'prompt_blocked' ? 422 : 502 }

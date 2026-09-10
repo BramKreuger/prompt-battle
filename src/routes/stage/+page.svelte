@@ -3,10 +3,26 @@
 	import { tournamentState, getSocket } from '$lib/tournament-client.js';
 	import Countdown from '$lib/Countdown.svelte';
 	import Confetti from '../Confetti.svelte';
-	import { audioEnabled, enableAudio } from '$lib/audio.js';
+	import {
+		audioEnabled,
+		enableAudio,
+		startTenseMusic,
+		stopTenseMusic,
+		promptSting,
+		revealSting,
+		winnerFanfare,
+		matchFanfare,
+		championFanfare
+	} from '$lib/audio.js';
 	import QRCode from 'qrcode';
 
 	let voteQrDataUrl = '';
+
+	// How many of the closing rounds get the dramatic intro soundtrack
+	// (Lexicon_Assassin) at their match intro. 1 = the final only, 2 = final
+	// plus the semifinals, and so on. Every other round is carried by the tense
+	// bed during prompting instead, so the soundtrack keeps its impact.
+	const INTRO_MUSIC_LAST_ROUNDS = 1;
 
 	/** @type {number | null} */
 	let confettiFor = null;
@@ -35,9 +51,64 @@
 		});
 	});
 
+	let muted = false;
+
 	function handleEnable() {
 		enableAudio();
 		if (finalAudioEl) finalAudioEl.load();
+		// Sound may be switched on mid-round, after the transition that would
+		// have started the music has already gone by.
+		if (s?.status === 'prompting' || s?.status === 'generating') startTenseMusic();
+	}
+
+	function toggleMute() {
+		muted = !muted;
+		if (muted) {
+			stopTenseMusic({ fade: 0.3 });
+			stopFinalAudio();
+		} else if (s?.status === 'prompting' || s?.status === 'generating') {
+			startTenseMusic();
+		}
+	}
+
+	/**
+	 * One cue per phase change. Guarded on the previous status because the
+	 * server re-broadcasts state on every action — every single audience vote
+	 * would otherwise re-fire the reveal sting.
+	 *
+	 * @param {string} status
+	 */
+	function playCueFor(status) {
+		if (!$audioEnabled || muted) return;
+		switch (status) {
+			case 'prompting':
+				// The final's intro music must not play under the tense bed.
+				stopFinalAudio();
+				promptSting();
+				startTenseMusic();
+				break;
+			case 'generating':
+				// Deliberately nothing: the bed keeps running over the wait.
+				break;
+			case 'voting':
+				stopTenseMusic({ fade: 0.4 });
+				revealSting();
+				break;
+			case 'revealing':
+				stopTenseMusic({ fade: 0.4 });
+				winnerFanfare();
+				break;
+			case 'match_complete':
+				stopTenseMusic({ fade: 0.4 });
+				matchFanfare();
+				break;
+			case 'tournament_complete':
+				stopTenseMusic({ fade: 0.4 });
+				championFanfare();
+				break;
+			default:
+				stopTenseMusic({ fade: 0.6 });
+		}
 	}
 
 	$: s = $tournamentState;
@@ -47,12 +118,23 @@
 	$: totalVotes = (cp?.votes?.[1] || 0) + (cp?.votes?.[2] || 0);
 	$: pct1 = totalVotes ? Math.round((cp.votes[1] / totalVotes) * 100) : 0;
 	$: pct2 = totalVotes ? 100 - pct1 : 0;
-	$: isFinalRound = s?.bracket?.length && s.currentRoundIdx === s.bracket.length - 1;
+	// 0 = the final itself, 1 = the semifinals, ...
+	$: roundsFromFinal = s?.bracket?.length ? s.bracket.length - 1 - s.currentRoundIdx : null;
+	$: isFinalRound = roundsFromFinal === 0;
+	$: playsIntroMusic = roundsFromFinal !== null && roundsFromFinal < INTRO_MUSIC_LAST_ROUNDS;
 	$: gameActive = s && s.status !== 'idle' && s.status !== 'configured';
+
+	/** @type {string | null} */
+	let lastStatus = null;
+	$: if (s?.status && s.status !== lastStatus) {
+		lastStatus = s.status;
+		playCueFor(s.status);
+	}
 
 	$: if (
 		s?.status === 'match_intro' &&
-		isFinalRound &&
+		playsIntroMusic &&
+		!muted &&
 		finalAudioPlayedForRound !== s.currentRoundIdx
 	) {
 		finalAudioPlayedForRound = s.currentRoundIdx;
@@ -71,7 +153,7 @@
 		finalAudioPlaying = false;
 	}
 
-	function stopAudio() {
+	function stopFinalAudio() {
 		if (finalAudioEl) finalAudioEl.pause();
 		finalAudioPlaying = false;
 	}
@@ -147,7 +229,11 @@
 			<!-- Two columns -->
 			<div class="flex-1 grid grid-cols-2 gap-4 min-h-0">
 				{#each [1, 2] as pid}
-					<div class="border {cp.winner === pid ? 'border-turquoise border-4' : 'border-white/30'} p-3 flex flex-col min-h-0">
+					<div
+						class="border {cp.winner === pid
+							? 'border-turquoise border-4'
+							: 'border-white/30'} p-3 flex flex-col min-h-0"
+					>
 						<div class="text-2xl mb-2">{pid === 1 ? match.p1 : match.p2}</div>
 						{#if s.status === 'voting' || s.status === 'revealing'}
 							{#if cp.images[pid]}
@@ -156,7 +242,9 @@
 								<div
 									class="flex-1 flex flex-col items-center justify-center text-center min-h-0 border border-red-500/40 bg-red-500/5 p-4"
 								>
-									<div class="text-6xl mb-3">{cp.errors?.[pid]?.code === 'prompt_blocked' ? '🚫' : '⚠️'}</div>
+									<div class="text-6xl mb-3">
+										{cp.errors?.[pid]?.code === 'prompt_blocked' ? '🚫' : '⚠️'}
+									</div>
 									<div class="text-2xl text-red-300">
 										{cp.errors?.[pid]?.code === 'prompt_blocked'
 											? 'Prompt geblokkeerd door het filter'
@@ -205,9 +293,7 @@
 			</div>
 
 			{#if s.status === 'voting'}
-				<div class="mt-4 text-center text-xl text-turquoise">
-					🗳️ Audience, vote now!
-				</div>
+				<div class="mt-4 text-center text-xl text-turquoise">🗳️ Audience, vote now!</div>
 			{/if}
 		{/if}
 	{/if}
@@ -230,6 +316,14 @@
 	>
 		🔊 Enable sounds
 	</button>
+{:else}
+	<button
+		on:click={toggleMute}
+		title="Mute alle muziek en effecten"
+		class="fixed bottom-4 right-4 px-3 py-2 text-sm z-40 border border-white/40 bg-black/60 text-white hover:opacity-90"
+	>
+		{muted ? '🔇 Geluid uit' : '🔊 Geluid aan'}
+	</button>
 {/if}
 
 <audio
@@ -240,7 +334,7 @@
 />
 {#if finalAudioPlaying}
 	<button
-		on:click={stopAudio}
+		on:click={stopFinalAudio}
 		class="fixed top-4 right-4 bg-black/60 text-white px-3 py-1 text-sm z-40 border border-white/40"
 	>
 		🎵 Intro music — stop

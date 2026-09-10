@@ -2,14 +2,14 @@
  * How long a tournament actually takes, so the host can pick a player count
  * that fits the slot they have.
  *
- * Everything is in seconds. `generate` is measured — gpt-image-2 at low
- * quality lands in about 20s, and a refused prompt plus a retry costs more, so
- * 25 is the honest planning number. The rest are the realistic minimums of
- * running this live: an audience needs time to look and vote, and players have
- * to physically swap seats between matches.
+ * Everything is in seconds. `generate` is measured — gpt-image-2.5-flare at
+ * low quality lands in 11-13s, so 15 is the honest planning number with a
+ * little headroom. The rest are the realistic minimums of running this live:
+ * an audience needs time to look and vote, and players have to physically swap
+ * seats between matches.
  */
 export const TIMINGS = {
-	generate: 25,
+	generate: 15,
 	voting: 30,
 	reveal: 15,
 	matchChangeover: 45,
